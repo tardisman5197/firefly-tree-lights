@@ -21,30 +21,7 @@ The output file from this program is
 
 Where `r_n`, `g_n`, `b_n` are the red, green, blue values of the nth Firefly in the simulation.
 
-Various parameters of the simulation can be changed such as:
-
-```rust
-// MAX_COUNTDOWN is the interval of ticks
-// between a Fly flashing.
-const MAX_COUNTDOWN: i16 = 40;
-
-// NUDGE_VALUE is the number of ticks which
-// a Fly will move towards its neighbouring
-// Fly's flash.
-const NUDGE_VALUE: i16 = 1;
-
-// NO_OF_NEIGHBOURS is the initial number of 
-// neighbours which each Fly has. 
-const NO_OF_NEIGHBOURS: usize = 5;
-
-// NO_OF_TICKS is the maximum number of ticks
-// the simulation runs for.
-const NO_OF_TICKS: usize = 60000;
-
-// SYNC_STOP is the number of fully synced flashes
-// the swarm performs before stopping.
-const SYNC_STOP:usize = 10;
-```
+Various parameters of the simulation can be changed (*See Usage*).
 
 ## Prerequisites
 
@@ -61,17 +38,27 @@ This will create a binary within the `./target/release/` directory.
 ## Usage
 
 ```
-firefly <input.csv> <output.csv>
-```
+USAGE:
+    firefly [FLAGS] [OPTIONS] --input <FILE> --output <FILE>
 
-For Example:
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+    -v, --verbose    Logs with verbose messages
 
-```
-firefly coords.csv output.csv
+OPTIONS:
+    -n, --neighbours <NO OF NEIGHBOURS>    The initial number of neighbours each Firefly starts with
+    -i, --input <FILE>                     The path to the input csv
+    -c, --countdown <NO OF TICKS>          The number of ticks between a Firefly's flash
+    -t, --ticks <NO OF TICKS>              The maximum number of ticks the simulation can run for
+    -n, --nudge <NO OF TICKS>              The number of ticks that a Firefly can be nudged closer to other Fireflies
+    -o, --output <FILE>                    The path to where the output csv should be stored
+    -s, --sync <NO OF SYNCS>               The number of totally synced flashes to execute before stopping the
+
 ```
 
 *Running after building use this command:*
 
 ```
-./target/release/firefly ./input/matts-tree.csv ./output/test.csv
+./target/release/firefly -i ./input/matts-tree.csv -o ./output/test.csv
 ```

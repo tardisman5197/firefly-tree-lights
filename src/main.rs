@@ -1,38 +1,98 @@
 use rand::Rng;
-use std::env;
 use std::process;
 use std::fs::File;
 use std::time::Instant;
 use std::io::{BufWriter, Write};
 use std::cmp::Ordering;
+extern crate clap;
+use clap::{Arg, App};
 
 // MAX_COUNTDOWN is the interval of ticks
 // between a Fly flashing.
-const MAX_COUNTDOWN: i16 = 40;
+const MAX_COUNTDOWN: &str = "40";
 // NUDGE_VALUE is the number of ticks which
 // a Fly will move towards its neighbouring
 // Fly's flash.
-const NUDGE_VALUE: i16 = 1;
+const NUDGE_VALUE: &str = "1";
 // NO_OF_NEIGHBOURS is the initial number of 
 // neighbours which each Fly has. 
-const NO_OF_NEIGHBOURS: usize = 5;
+const NO_OF_NEIGHBOURS: &str = "5";
 // NO_OF_TICKS is the maximum number of ticks
 // the simulation runs for.
-const NO_OF_TICKS: usize = 60000;
+const NO_OF_TICKS: &str = "60000";
 // SYNC_STOP is the number of fully synced flashes
 // the swarm performs before stopping.
-const SYNC_STOP:usize = 10;
+const SYNC_STOP: &str = "10";
 
 
 fn main() {
-    // Create a vector of arguments passed in
-    // [1] input coordinates file path
-    // [2] output csv file path
-    let args: Vec<String> = env::args().collect();
+    // Read in arguments for the simulation
+    let matches = App::new("Firefly Tree Lights")
+        .version("1.0")
+        .author("Ed")
+        .about("Creates a Firefly synchronisation tree light animation")
+        .arg(Arg::with_name("Input")
+            .short("i")
+            .long("input")
+            .value_name("FILE")
+            .help("The path to the input csv")
+            .takes_value(true)
+            .required(true))
+        .arg(Arg::with_name("Output")
+            .short("o")
+            .long("output")
+            .value_name("FILE")
+            .help("The path to where the output csv should be stored")
+            .takes_value(true)
+            .required(true))
+        .arg(Arg::with_name("verbose")
+            .short("v")
+            .long("verbose")
+            .help("Logs with verbose messages"))
+        .arg(Arg::with_name("Nudge Value")
+            .short("n")
+            .long("nudge")
+            .value_name("NO OF TICKS")
+            .help("The number of ticks that a Firefly can be nudged closer to other Fireflies")
+            .takes_value(true))
+        .arg(Arg::with_name("Max Countdown")
+            .short("c")
+            .long("countdown")
+            .value_name("NO OF TICKS")
+            .help("The number of ticks between a Firefly's flash")
+            .takes_value(true))
+        .arg(Arg::with_name("Initial Neighbours")
+            .short("nb")
+            .long("neighbours")
+            .value_name("NO OF NEIGHBOURS")
+            .help("The initial number of neighbours each Firefly starts with")
+            .takes_value(true))
+        .arg(Arg::with_name("Max Ticks")
+            .short("t")
+            .long("ticks")
+            .value_name("NO OF TICKS")
+            .help("The maximum number of ticks the simulation can run for")
+            .takes_value(true))
+        .arg(Arg::with_name("Sync Stop")
+            .short("s")
+            .long("sync")
+            .value_name("NO OF SYNCS")
+            .help("The number of totally synced flashes to execute before stopping the simulation")
+            .takes_value(true))
+        .get_matches();
+
+    let input = matches.value_of("Input").unwrap_or("./input/matts-tree.csv");
+    let output = matches.value_of("Output").unwrap_or("./output/out.csv");
+    let nudge_value = matches.value_of("Nudge Value").unwrap_or(NUDGE_VALUE).parse::<i16>().unwrap();
+    let no_of_neighbours = matches.value_of("Initial Neighbours").unwrap_or(NO_OF_NEIGHBOURS).parse::<usize>().unwrap();
+    let no_of_ticks = matches.value_of("Max Ticks").unwrap_or(NO_OF_TICKS).parse::<usize>().unwrap();
+    let max_countdown = matches.value_of("Max Countdown").unwrap_or(MAX_COUNTDOWN).parse::<i16>().unwrap();
+    let sync_stop = matches.value_of("Sync Stop").unwrap_or(SYNC_STOP).parse::<i16>().unwrap();
+    let verbose = matches.is_present("verbose");
 
     // Read the input file and find each Fly's
     // closest Flies
-    let mut flies = read_in_flies(&args[1]);
+    let mut flies = read_in_flies(input, max_countdown, nudge_value, no_of_neighbours);
     flies = calc_neighbours(flies);
 
     print!("Input File:               {}
@@ -43,19 +103,19 @@ Nudge Value:              {}
 Initial No of Neighbours: {}
 Max Ticks:                {}
 Sync Stop Count:          {}\n",
-        args[1],
-        args[2],
+        input,
+        output,
         flies.len(),
-        MAX_COUNTDOWN,
-        NUDGE_VALUE,
-        NO_OF_NEIGHBOURS,
-        NO_OF_TICKS,
-        SYNC_STOP,
+        max_countdown,
+        nudge_value,
+        no_of_neighbours,
+        no_of_ticks,
+        sync_stop,
     );
     println!("======");
 
     // Create the output file
-    let out = match File::create(&args[2]) {
+    let out = match File::create(output) {
         Ok(out) => out,
         Err(e) => {
             println!("{:?}", e);
@@ -72,7 +132,7 @@ Sync Stop Count:          {}\n",
     let start = Instant::now();
     // Run sim until synced or timeout
     let mut sync_count = 0;
-    for i in 0..NO_OF_TICKS {
+    for i in 0..no_of_ticks {
         // Simulate a tick for each Fly
         swarm.tick();
         // Write the frame number to the output file
@@ -105,6 +165,10 @@ Sync Stop Count:          {}\n",
         write!(buf, "\n").unwrap();
         buf.flush().unwrap();
 
+        if verbose {
+            println!("{} - Lit: {:?}", i, lit)
+        }
+
         // Check if all of the Flies are currently lit
         // If they are this means they are fully synced.
         if lit.len() == swarm.flies.len() {
@@ -112,7 +176,7 @@ Sync Stop Count:          {}\n",
             // flashes have occurred and stop after the
             // specified number of flashes.
             sync_count += 1;
-            if sync_count >= SYNC_STOP {
+            if sync_count >= sync_stop {
                 println!("Sync Stop - Ticks: {}", i);
                 break
             }
@@ -124,7 +188,7 @@ Sync Stop Count:          {}\n",
 
 // read_in_flies takes a filepath to the input coordinates
 // and creates a Fly for each coord.
-fn read_in_flies(filepath: &str) -> Vec<Fly> {
+fn read_in_flies(filepath: &str, max_countdown: i16, nudge_value: i16, no_of_neighbours: usize) -> Vec<Fly> {
     let input = std::fs::read_to_string(filepath).unwrap();
     input
         .lines()
@@ -135,7 +199,7 @@ fn read_in_flies(filepath: &str) -> Vec<Fly> {
             (val[0], val[1], val[2])
         })
         .fold(Vec::new(), |mut flies, coords| {
-            flies.push(Fly::new(coords));
+            flies.push(Fly::new(coords, max_countdown, nudge_value, no_of_neighbours));
             flies
         })
 }
@@ -239,6 +303,8 @@ impl Swarm {
 #[derive(Debug, Clone)]
 struct Fly {
     countdown: i16,
+    max_countdown: i16,
+    nudge_value: i16,
     position: (f64, f64, f64),
     neighbours: Vec<(usize, f64)>,
     find_new_neighbours: bool,
@@ -249,13 +315,15 @@ impl Fly {
     // new returns an instance of Fly with the
     // coordinates provided and a random countdown
     // value between 0 and MAX_COUNTDOWN to begin.
-    fn new(pos: (f64, f64, f64)) -> Fly {
+    fn new(pos: (f64, f64, f64), max_countdown: i16, nudge_value: i16, no_of_neighbours: usize) -> Fly {
         let mut rng = rand::thread_rng();
         Fly{
-            countdown: rng.gen_range(0..MAX_COUNTDOWN), 
+            countdown: rng.gen_range(0..max_countdown),
+            max_countdown: max_countdown,
+            nudge_value: nudge_value,
             position: pos,
             neighbours: vec!(),
-            no_of_neighbours: NO_OF_NEIGHBOURS,
+            no_of_neighbours: no_of_neighbours,
             find_new_neighbours: true,
         }
     }
@@ -267,7 +335,7 @@ impl Fly {
     // will expand its neighbourhood.
     fn tick(&mut self) {
         if self.countdown <= 0 {
-            self.countdown = MAX_COUNTDOWN;
+            self.countdown = self.max_countdown;
             // Grow neighbours if in sync
             if self.find_new_neighbours {
                 self.no_of_neighbours += 1;
@@ -295,10 +363,10 @@ impl Fly {
     // reduce the time to the next flash if it
     // has been a while since the Fly has flashed.
     fn nudge(&mut self) {
-        if (self.countdown) > MAX_COUNTDOWN/2 {
-            self.countdown += NUDGE_VALUE;
+        if (self.countdown) > self.max_countdown/2 {
+            self.countdown += self.nudge_value;
         } else {
-            self.countdown -= NUDGE_VALUE;
+            self.countdown -= self.nudge_value;
         }
         self.find_new_neighbours = false;
     }
