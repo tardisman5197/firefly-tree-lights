@@ -49,6 +49,10 @@ fn main() {
             .short("v")
             .long("verbose")
             .help("Logs with verbose messages"))
+        .arg(Arg::with_name("colour")
+            .short("r")
+            .long("colour")
+            .help("Use calculated red/green colours for a Fly's flash"))
         .arg(Arg::with_name("Nudge Value")
             .short("n")
             .long("nudge")
@@ -89,6 +93,7 @@ fn main() {
     let max_countdown = matches.value_of("Max Countdown").unwrap_or(MAX_COUNTDOWN).parse::<i16>().unwrap();
     let sync_stop = matches.value_of("Sync Stop").unwrap_or(SYNC_STOP).parse::<i16>().unwrap();
     let verbose = matches.is_present("verbose");
+    let colour = matches.is_present("colour");
 
     // Read the input file and find each Fly's
     // closest Flies
@@ -141,15 +146,22 @@ Sync Stop Count:          {}\n",
         // Get a vector of all of the Flies which are
         // currently flashing on this tick
         let lit = swarm.lit_flies();
-        // Calculate the Red and Green values for the Fly's
-        // flash based on how many flies are currently lit.
-        // Red = All flies, Green = One Fly
-        let r = 255 * lit.len()/swarm.flies.len();
-        let g = 255 - r;
+
+        let mut r = 255;
+        let mut g = 255;
+        let mut b = 255;
+        if colour {
+            // Calculate the Red and Green values for the Fly's
+            // flash based on how many flies are currently lit.
+            // Red = All flies, Green = One Fly
+            r = 255 * lit.len()/swarm.flies.len();
+            g = 255 - r;
+            b = 0;
+        }
         // Write each Fly's colour value to the output file
         swarm.flies.iter().enumerate().for_each(|(i, fly)| {
             if fly.lit() {
-                write!(buf, "{},{},0", r, g).unwrap();
+                write!(buf, "{},{},{}", r, g, b).unwrap();
             } else {
                 write!(buf, "0,0,0").unwrap();
             }

@@ -42,6 +42,7 @@ USAGE:
     firefly [FLAGS] [OPTIONS] --input <FILE> --output <FILE>
 
 FLAGS:
+    -r, --colour     Use calculated red/green colours for a Fly's flash
     -h, --help       Prints help information
     -V, --version    Prints version information
     -v, --verbose    Logs with verbose messages
@@ -54,7 +55,7 @@ OPTIONS:
     -n, --nudge <NO OF TICKS>              The number of ticks that a Firefly can be nudged closer to other Fireflies
     -o, --output <FILE>                    The path to where the output csv should be stored
     -s, --sync <NO OF SYNCS>               The number of totally synced flashes to execute before stopping the
-
+                                           simulation
 ```
 
 *Running after building use this command:*
